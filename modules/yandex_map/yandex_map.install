@@ -1,0 +1,74 @@
+<?php
+
+/**
+ * @file
+ * Install/Update/Uninstall functions for yandex_map_field module
+ */
+
+
+
+/**
+ * Implements hook_field_schema().
+
+ *.install. Он отвечает у нас за создания места в БД для нашего поля.
+
+ */
+function yandex_map_field_schema($field) {
+  $columns = array(
+    'lat' => array(
+      'description' => 'Stores the latitude value',
+      'type' => 'float',
+      'size' => 'big',
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+    'lng' => array(
+      'description' => 'Stores the longitude value',
+      'type' => 'float',
+      'size' => 'big',
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+    'lat_sin' => array(
+      'description' => 'Stores the sine of latitude',
+      'type' => 'float',
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+    'lat_cos' => array(
+      'description' => 'Stores the cosine of latitude',
+      'type' => 'float',
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+    'lng_rad' => array(
+      'description' => 'Stores the radian longitude',
+      'type' => 'float',
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+    'vzoom' => array(
+      'description' => 'Stores the zoom value',
+      'type' => 'float',
+      'size' => 'big',
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+    'vid' => array(
+     'description' => 'Stores the vid value',
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => FALSE,
+    ),
+  );
+  $indexes = array(
+    'lat' => array('lat'),
+    'lng' => array('lng'),
+    'vzoom' => array('vzoom'),
+    'vid' => array('vid'),
+  );
+  return array(
+    'columns' => $columns,
+    'indexes' => $indexes,
+  );
+}

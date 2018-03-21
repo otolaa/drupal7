@@ -1,0 +1,18 @@
+/**
+ * @file
+ * CSS for Geolocation Field.
+ */
+
+.field-type-yandex-map-latlng.field-widget-yandex-map-text .fieldset-wrapper {
+  overflow: hidden;
+}
+
+.field-type-yandex-map-latlng.field-widget-yandex-map-text .form-type-textfield {
+  /*float: left;*/
+  margin-right: 1em; 
+  /*display:none;*/
+}
+
+.destroyButton_{ float:right; width:30%; text-align:right; overflow:hidden;}
+.YMaps{ overflow:hidden;}
+/*.yandex-map-address{ height:320px;}*/

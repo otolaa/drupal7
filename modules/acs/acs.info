@@ -1,0 +1,11 @@
+name = acs
+description = acs - access_main
+core = 7.x
+files[] = acs_helper.inc
+
+; Information text
+version = "7.x-1.00"
+core = "7.x"
+project = "access_user"
+datestamp = "1319477133"
+

@@ -1,0 +1,416 @@
+<?php
+
+/**
+ * @file
+ * A yandex_map field using the Field API.
+ */
+
+function yandex_map_menu() {
+  $items = array();
+  $items['admin/config/yandex_map'] = array(
+        'title' => 'Yandex map config',
+	    'description' => 'Settings for yandex_map module',
+	    'page callback' => 'drupal_get_form',
+	    'page arguments' => array('yandex_map_admin_settings'),
+	    'file' => 'yandex_map.admin.inc',
+	    'access arguments' => array('administer site configuration'),
+  );
+  return $items;}
+
+
+
+/**
+ * Implements hook_field_info().
+ */
+function yandex_map_field_info() {
+
+  // returm array
+  return array(
+    'yandex_map_latlng' => array(
+      // the name type 'yandex_map'
+      'label' => t('Yandex/map'),
+       // description for type
+      'description' => t('yandex_map input.'),
+      'default_widget' => 'yandex_map_latlng',
+      'default_formatter' => 'yandex_map_text',
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_validate().
+ */
+function yandex_map_field_validate($entity_type, $entity, $field, $instance, $langcode, $items, &$errors) {
+  foreach ($items as $delta => $item) {
+    if (!yandex_map_field_is_empty($item, $field)) {
+      switch (TRUE) {
+        case !is_numeric($item['lat']):
+          $errors[$field['field_name']][$langcode][$delta][] = array(
+            'error' => 'yandex_map_invalid_lat',
+            'message' => t('Invalid Latitude. Value must be numeric.'),
+          );
+          break;
+        case $item['lat'] > 90:
+        case $item['lat'] < -90:
+          $errors[$field['field_name']][$langcode][$delta][] = array(
+            'error' => 'yandex_map_invalid_lat',
+            'message' => t('Invalid Latitude. Value must be between 90 and -90.'),
+          );
+          break;
+      }
+
+      switch (TRUE) {
+        case !is_numeric($item['lng']):
+          $errors[$field['field_name']][$langcode][$delta][] = array(
+            'error' => 'yandex_map_invalid_lng',
+            'message' => t('Invalid Longitude. Value must be numeric.'),
+          );
+        case $item['lng'] > 180:
+        case $item['lng'] < -180:
+          $errors[$field['field_name']][$langcode][$delta][] = array(
+            'error' => 'yandex_map_invalid_lng',
+            'message' => t('Invalid Longitude. Value must be between 180 and -180'),
+          );
+          break;
+      }
+    }
+  }
+}
+
+	/**
+	 * Implements hook_field_presave().
+	 */
+	function yandex_map_field_presave($entity_type, $entity, $field, $instance, $langcode, &$items) {
+	  foreach ($items as $delta => $item) {
+	    // Precalculate some goodness.
+	    $item['lat_sin'] = sin(deg2rad($item['lat']));
+	    $item['lat_cos'] = cos(deg2rad($item['lat']));
+	    $item['lng_rad'] = deg2rad($item['lng']);
+	    $items[$delta] = $item;
+	  }
+	}
+
+	/**
+	 * Implements hook_field_is_empty().
+	 */
+	function yandex_map_field_is_empty($item, $field) {
+	  if (empty($item['lat']) && (string) $item['lat'] !== '0'
+	   && empty($item['lng']) && (string) $item['lng'] !== '0') {
+	    return TRUE;
+	  }
+	}
+
+		/**
+		 * Implements hook_field_formatter_info().
+		   // hook_field_formatter_info
+		 */
+		function yandex_map_field_formatter_info() {
+		  return array(
+		    'yandex_map_text' => array(
+		      'label' => t('Simple text-based formatter'),
+		      'field types' => array('yandex_map_latlng'),
+		    ),
+
+		    'yandex_map_maps' => array(
+		      'label' => t('Maps text-based formatter'),
+		      'field types' => array('yandex_map_latlng'),
+		    ),
+
+		  );
+		}
+
+/////-------------
+
+	/**
+	 * Implements hook_field_formatter_view().
+	 */
+	function yandex_map_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+	  $element = array();
+
+	  switch ($display['type']) {
+
+	    case 'yandex_map_text':
+	      foreach ($items as $delta => $item) {
+	        $element[$delta]['#markup'] = '<p>' . t('Широта/Долгота @lat, @lng', array('@lat' => $item['lat'], '@lng' => $item['lng'])) . '</p>';
+	      }
+	      break;
+
+	      case 'yandex_map_maps':
+	      $yandexViews = array();
+	      foreach ($items as $delta => $item) {
+
+	        ///echo "<pre>";print_r( $item );echo "</pre>";
+
+	        $yandex_map_height = variable_get('yandex_map_height', FALSE);
+            $yandex_map_height = isset($yandex_map_height) ? $yandex_map_height : '200px';
+
+            $markers = array('lat' => (float)$item['lat'], 'lng' => (float)$item['lng']);
+
+            $mapHeader = "";
+            $mapBody = "";
+            $mapFooter = "";
+            $mapId = "";
+
+                // from node
+	           if(isset($entity->title)){
+		            $mapHeader = $entity->title;
+		            $mapId = $entity->nid;
+
+                   if(isset($entity->body['und'][0]['value'])){
+                             //echo "<pre> "; print_r($entity->nid); echo "</pre>";
+                             $node_body = node_load($entity->nid);
+						     $field_body = field_get_items('node', $node_body, 'body');
+						     $output = field_view_value('node', $node_body, 'body', $field_body[0], array('format' => 'plain_text'));
+							 //print render ($output);
+		                     $body_maps = drupal_html_to_text(render($output));
+					         $mapBody = truncate_utf8($body_maps, 100) .'...';
+
+		              }else{
+		                 $mapBody = '';          		             }
+
+		            $mapFooter = l(t('Read more'), 'node/' . $entity->nid, array('html'=>FALSE));
+		         }else{
+
+			      // from user
+
+			      if(isset($entity->name)){
+	                  $mapHeader = $entity->name;
+	                  $mapBody = '';
+	                  $mapFooter = l(t('Read more'), 'user/' . $entity->uid, array('html'=>FALSE));
+	                  $mapId = $entity->uid;
+			      }
+
+              }
+
+            //--
+            $yandex_map_center = explode(',', variable_get('yandex_map_center', "37.6199,55.7537"));  //-- the Moscow (longitude,latitude)
+		    $yandex_map_preset = variable_get('yandex_map_preset', "islands#dotIcon");
+		    $yandex_map_iconcolor = variable_get('yandex_map_iconcolor', "#1faee9");
+
+
+		    $yandexViews[] = array(
+		         'markers' => $markers,
+                 'mapZoom' => (int)$item['vzoom'],
+		         'mapType' => $item['vid'],
+		         'mapHeader' =>  $mapHeader,
+		         'mapBody' => (string)$mapBody,
+		         'mapFooter' => $mapFooter,
+		         'mapid' => $mapId,
+		         'longitude' => $yandex_map_center[0],
+		         'latitude' => $yandex_map_center[1],
+		         'preset' => $yandex_map_preset,
+		         'iconcolor'=>$yandex_map_iconcolor,
+		      );
+
+		   //--
+
+	        $element_array = array(
+                '#prefix' => '<div id="yandex-map-address" class="yandex-map-address">',
+		        '#suffix' => '</div>',
+		        '#markup' => '<div id="YMapsID'.$mapId.'" class="YMaps YMaps-cursor-grab" style="width: 100%; height: '.$yandex_map_height.'"></div>',
+	        ); //$item['lat'];
+
+	        $element[$delta]['#markup'] = drupal_render($element_array);
+
+
+	      }
+
+	      //
+          drupal_add_js('http://api-maps.yandex.ru/2.1-dev/?lang=ru-RU&load=package.full', array('type' => 'external', 'weight'=>5));
+          drupal_add_js(drupal_get_path('module', 'yandex_map') . '/yandex_map_node.js', array('weight'=>6));
+	      //
+     	   drupal_add_js(array(
+					      'yandexViews' => array(
+					         'mark' => $yandexViews,
+					      ),
+					    ), 'setting');
+
+	      break;
+
+	  }
+	  return $element;
+	}
+
+	/**
+	 * Implements hook_field_widget_info().
+	// hook_field_widget_info
+	 */
+	function yandex_map_field_widget_info() {
+	  return array(
+	    'yandex_map_text' => array(
+	      'label' => t('Yandex/maps'),
+	      'field types' => array('yandex_map_latlng'),
+	    ),
+
+	  );
+	}
+
+		/**
+		 * Implements hook_field_widget_form().
+		 */
+		function yandex_map_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+
+		  $id = $instance['id'] . '-' . $delta;
+
+		  $lat_value = isset($items[$delta]['lat']) ? $items[$delta]['lat'] : '';
+		  $lng_value = isset($items[$delta]['lng']) ? $items[$delta]['lng'] : '';
+
+           //
+           if(isset($form['#type'])){
+            //
+            $typeField = 'textfield';           }else{ $typeField = 'hidden'; }
+
+           ///---
+		  $vzoom_value = isset($items[$delta]['vzoom']) ? $items[$delta]['vzoom'] : '';
+		  $vid_value = isset($items[$delta]['vid']) ? $items[$delta]['vid'] : 'islands#dotIcon';
+
+
+		  $element += array(
+		    '#delta' => $delta,
+		  );
+
+		  // Wrap in a fieldset for single fields
+		  if ($field['cardinality'] == 1) {
+		    $element['#type'] = 'fieldset';
+		  }
+
+		  $element['lat'] = array();
+		  $element['lng'] = array();
+          ///---
+		  $element['vzoom'] = array();
+		  $element['vid'] = array();
+
+		  switch ($instance['widget']['type']) {
+
+		    case 'yandex_map_text':
+		      $element['lat'] += array(
+		        '#title' => t('Latitude'),
+		        '#type' => 'hidden',      //hidden   //textfield
+		        '#default_value' => $lat_value,
+		        '#size' => 30,
+		        '#maxlength' => 30,
+		        '#attributes' => array('id'=> 'point_lat'),
+		        '#required' => $instance['required'],
+		      );
+		      $element['lng'] += array(
+		        '#title' => t('Longitude'),
+		        '#type' => 'hidden',    //hidden
+		        '#default_value' => $lng_value,
+		        '#size' => 30,
+		        '#maxlength' => 30,
+		        '#attributes' => array('id'=> 'point_lon'),
+		        '#required' => $instance['required'],
+		      );
+
+		      $element['vzoom'] += array(
+		        '#title' => t('Zoom'),
+		        '#type' => 'hidden',    //hidden
+		        '#default_value' => $vzoom_value,
+		        '#size' => 30,
+		        '#maxlength' => 30,
+		        '#attributes' => array('id'=> 'vzoom'),
+		        '#required' => $instance['required'],
+		      );
+
+		      $element['vid'] += array(
+		        '#title' => t('Style'),
+		        '#description' => 'http://api.yandex.ru/maps/jsapi/doc/ref/reference/styles.xml',
+		        '#type' => 'hidden',    //hidden     textfield
+		        '#default_value' => $vid_value,
+		        '#size' => 30,
+		        '#maxlength' => 30,
+		        '#attributes' => array('id'=> 'vid'),
+		        '#required' => $instance['required'],
+		      );
+
+		      //
+
+		       $element['address'] = array(
+		        '#type' => 'item',
+		        '#title' => $element['#title'],
+		        '#prefix' => '<div id="yandex-map-address-' . $id . '" class="yandex-map-address">',
+		        '#suffix' => '<div class="destroyButton_"><input type="button" id="destroyButton" value="УДАЛИТЬ МЕТКУ" class="form-submit btn"></div></div>',
+		        '#markup' => '<div id="YMapsID" class="YMaps YMaps-cursor-grab" style="width: 100%; height: 300px;"></div>',
+		        '#required' => $instance['required'],
+		      );
+
+		      $element['yandex_map']['#attached']['css'][] = drupal_get_path('module', 'yandex_map') . '/yandex_map.css';
+		      $element['yandex_map']['#attached']['js'][] = array(
+		        'data' => 'http://api-maps.yandex.ru/2.1-dev/?lang=ru-RU&load=package.full',
+		        'type' => 'external',
+		        'weight'=>6,
+		      );
+		      $element['yandex_map']['#attached']['js'][] = array(
+		        'data' => drupal_get_path('module', 'yandex_map') . '/yandex_map.js',
+		        'type' => 'file',
+		        'weight'=>7,
+		      );
+
+		      //-- default maps
+		      $yandex_map_center = explode(',', variable_get('yandex_map_center', "37.6199,55.7537"));  //-- the Moscow (longitude,latitude)
+		      $yandex_map_preset = variable_get('yandex_map_preset', "islands#dotIcon");
+		      $yandex_map_iconcolor = variable_get('yandex_map_iconcolor', "#1faee9");
+
+		      $mymap_['mymap'] = array('longitude' => $yandex_map_center[0], 'latitude' => $yandex_map_center[1], 'preset' => $yandex_map_preset, 'iconcolor'=>$yandex_map_iconcolor);
+              $element['yandex_map']['#attached']['js'][] = array('data' => $mymap_, 'type' => 'setting');
+		      // --
+
+		     $element['field_type'] = array('#type' => 'value', '#value' => $field['type']);
+		     $element['#element_validate'] = array('yandex_map_field_widget_validate');
+             $element['#element_validate'][] = 'yandex_map_field_widget_set_value';
+
+		      // --
+
+		      break;
+
+		  }
+		  return $element;
+		}
+
+
+/**
+ * Validation handler for geolocation_googlemaps_field_widget_form().
+ */
+function yandex_map_field_widget_validate($element, &$form_state, $form) {
+  if ($element['#required']) {
+    if (!$element['lat']['#value'] || !$element['lng']['#value']) {
+      form_error($element, t('!name field is required.', array('!name' => $element['#title'])));
+    }
+  }
+  else {
+    switch (TRUE) {
+      case $element['lng']['#value'] && !$element['lat']['#value']:
+        form_error($element, t('!name field is incomplete, latitude value is missing.', array('!name' => $element['#title'])));
+        break;
+
+      case !$element['lng']['#value'] && $element['lat']['#value']:
+        form_error($element, t('!name field is incomplete, longitude value is missing.', array('!name' => $element['#title'])));
+        break;
+    }
+  }
+}
+
+function yandex_map_field_widget_set_value($element, &$form_state, $form) {
+  $values = &drupal_array_get_nested_value($form_state['values'], $element['#parents']);
+  if ($values['field_type'] == 'geofield') {
+    // Geofield needs the values in their own format which is exactly what
+    // geofield_compute_values does, but we have to change first the longitude
+    // key because geofield uses a different one.
+    $values['lon'] = $values['lng'];
+    $values = geofield_compute_values($values);
+  }
+}
+
+		/**
+		 * Implements hook_field_widget_error().
+		 */
+		function yandex_map_field_widget_error($element, $error, $form, &$form_state) {
+		  switch ($error['error']) {
+		    case 'yandex_map_invalid_lat':
+		      form_error($element['lat'], $error['message']);
+		      break;
+		    case 'yandex_map_invalid_lng':
+		      form_error($element['lng'], $error['message']);
+		      break;
+		  }
+		}

@@ -1,0 +1,159 @@
+<?php
+
+/**
+ * Implements hook_field_schema().
+
+ *.install. Он отвечает у нас за создания места в БД для нашего поля.
+
+ */
+function kladr_field_schema($field) {
+  $columns = array(
+    'lat' => array(
+      'description' => 'Stores the latitude value',
+      'type' => 'float',
+      'size' => 'big',
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+    'lng' => array(
+      'description' => 'Stores the longitude value',
+      'type' => 'float',
+      'size' => 'big',
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+    'lat_sin' => array(
+      'description' => 'Stores the sine of latitude',
+      'type' => 'float',
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+    'lat_cos' => array(
+      'description' => 'Stores the cosine of latitude',
+      'type' => 'float',
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+    'lng_rad' => array(
+      'description' => 'Stores the radian longitude',
+      'type' => 'float',
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+    'vzoom' => array(
+      'description' => 'Stores the zoom value',
+      'type' => 'float',
+      'size' => 'big',
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+    'vid' => array(
+     'description' => 'Stores the vid value',
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    ////--- clean data from kladr
+    'kod' => array(
+     'description' => 'id from kladr',
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'zip' => array(
+     'description' => 'zip from kladr',
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'name' => array(
+     'description' => 'name from kladr',
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'type' => array(
+      'description' => 'type from kladr',
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'type_short' => array(
+      'description' => 'type short from kladr',
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    ///-- other data
+    'city' => array(
+      'description' => 'city from kladr',
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'street' => array(
+      'description' => 'street from kladr',
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'building' => array(
+      'description' => 'building from kladr',
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'building_add' => array(
+      'description' => 'building_add from kladr',
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'entrance' => array(
+      'description' => 'room entrance',
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'room' => array(
+      'description' => 'room from kladr',
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+    'address' => array(
+      'description' => 'address from kladr',
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => TRUE,
+      'default' => '',
+    ),
+  );
+  $indexes = array(
+    'lat' => array('lat'),
+    'lng' => array('lng'),
+    'vzoom' => array('vzoom'),
+    'vid' => array('vid'),
+    //'kod' => array('kod'),
+    //'zip' => array('zip'),
+    //'name' => array('name'),
+    //'type' => array('type'),
+    //'type_short' => array('type_short'),
+  );
+  return array(
+    'columns' => $columns,
+    'indexes' => $indexes,
+  );
+}

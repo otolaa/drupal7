@@ -1,0 +1,7 @@
+name = Yandex Views
+description = Provides a Views style plugin for yandex field.
+package = Yandex map
+core = 7.x
+version = 7.x-1.x-dev
+dependencies[] = yandex_map
+files[] = yandex_views_plugin_style_map.inc

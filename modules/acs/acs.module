@@ -1,0 +1,261 @@
+<?php
+
+
+/**
+	 * Реализация hook_menu()
+	 */
+	function acs_menu() {
+	  $items = array();
+
+	/*  $items['user/%user/mycabinet'] = array(
+	    'title' => 'Личный кабинет',
+	    'page callback' => 'mycabinet_user_callback',
+	    'page arguments' => array(1),
+	    'access callback' => 'mycabinet_user_edit_access',
+	    'access arguments' => array(1),
+	    'type' => MENU_LOCAL_TASK,
+	    'weight' => 10,
+	  );
+
+	   $items['user/%user/mycabinet/girls'] = array(
+	    //'title' => 'Мой проблемы',
+	    'title callback' => 'mycabinet_user_load',
+	    'title arguments' => array(1),
+	    'type' => MENU_DEFAULT_LOCAL_TASK,
+	  );
+
+	  $items['user/%user/mycabinet/archive'] = array(
+	    //'title' => 'Мой вопросы',
+	    'title callback' => 'questions_user_load',
+	    'title arguments' => array(1),
+	    'page callback' => 'questions_user_callback',
+	    'page arguments' => array(1),
+	    'access callback' => 'mycabinet_user_edit_access',
+	    'access arguments' => array(1),
+	    'type' => MENU_LOCAL_TASK,
+	    'weight' => 11,
+	  );
+*/
+
+	 return $items;
+	}
+
+
+   // * Access callback	 */
+	function geo_user_edit_access($account) {
+	  //return ($node->type == 'catalog');
+	  //return (($GLOBALS['user']->uid == $account->uid) || user_access('administer users')) && $account->uid > 0;
+	  return true;
+	}
+
+   // * Access callback	 */
+	function mycabinet_user_edit_access($account) {
+	  //return ($node->type == 'catalog');
+	  return (($GLOBALS['user']->uid == $account->uid) || user_access('administer users')) && $account->uid > 0;
+	}
+
+	/*-- title --*/
+	function mycabinet_user_load($account){
+
+	  //$result = db_query("SELECT COUNT(*) FROM {node} WHERE uid = :uid AND type IN (:type) ", array( ':uid' => $account->uid, ':type'=> array('problem') ));
+      $result = db_query("SELECT COUNT(*) FROM {node} WHERE uid = :uid AND type IN (:type) AND status = 1", array( ':uid' => $account->uid, ':type'=> array('girl') ));
+
+			foreach ($result as $row) { /* ... */
+			 $count = 'COUNT(*)';
+			 $ucounts = $row->$count;
+			}
+
+	  //$users = $account;
+      $title_load = "";
+      $title_load .= 'Добавленные анкеты';
+      $title_load .= ' - '.$ucounts.'';        //d7_user_count_nodes('novostroiki', arg(1))
+      //$title_load .= $users;
+      return drupal_html_to_text($title_load);  //arg(1)
+      //return '<pre>' . print_r(arg(1), TRUE) . '</pre>';
+	}
+
+	/*-- title --*/
+	function questions_user_load($account){
+
+	  //$result = db_query("SELECT COUNT(*) FROM {node} WHERE uid = :uid AND type IN (:type) ", array( ':uid' => $account->uid, ':type'=> array('qq') ));
+	  $result = db_query("SELECT COUNT(*) FROM {node} WHERE uid = :uid AND type IN (:type) AND status = 0", array( ':uid' => $account->uid, ':type'=> array('girl') ));
+
+			foreach ($result as $row) { /* ... */
+			 $count = 'COUNT(*)';
+			 $ucounts = $row->$count;
+			}
+
+	  //$users = $account;
+      $title_load = "";
+      $title_load .= 'Архив';
+      $title_load .= ' - '.$ucounts.'';        //d7_user_count_nodes('novostroiki', arg(1))
+      //$title_load .= $users;
+      return drupal_html_to_text($title_load);  //arg(1)
+      //return '<pre>' . print_r(arg(1), TRUE) . '</pre>';
+	}
+
+   /**
+	 * Page callback
+	 */
+	function mycabinet_user_callback($account) {
+
+	  return views_embed_view('mycabinet', $display_id = 'default', $account->uid);
+	  //return '<pre>' . check_plain(print_r($account->uid, TRUE)) . '</pre>'.'<pre>' . check_plain(print_r($account->name, TRUE)) . '</pre>';
+	}
+
+	function questions_user_callback($account) {
+
+	  return views_embed_view('myarhiv', $display_id = 'default', $account->uid);
+	  //return '<pre>' . check_plain(print_r($account->uid, TRUE)) . '</pre>'.'<pre>' . check_plain(print_r($account->name, TRUE)) . '</pre>';
+	}
+
+
+
+
+// -  bartik_form_node_form_alter
+function acs_form_node_form_alter(&$form, &$form_state, $form_id) {
+  if( isset($form['#node_edit_form']) && $form['#node_edit_form'] === true && $form_id == $form['type']['#value'] .'_node_form' ){
+
+     $types = $form['type']['#value']; //--from type node
+
+     if (($types == 'girl')||($types == 'industrial') ) {
+
+        //echo "<pre>";print_r( $form['type']['#value'] );echo "</pre>";
+        ///echo "<pre>";print_r( $form );echo "</pre>";
+        //drupal_set_title($title_names);
+
+            $form['actions']['#attributes']['style'][] = 'text-align:center;';
+	        $form['actions']['submit']['#attributes']['class'][] = 'btn';
+	        $form['actions']['submit']['#attributes']['class'][] = 'btn-large';
+	        $form['actions']['submit']['#attributes']['class'][] = 'btn-primary';
+	        $form['actions']['submit']['#value'] = 'Добавить Анкету';
+
+	        $form['actions']['delete']['#attributes']['class'][] = 'btn';
+	        $form['actions']['delete']['#attributes']['class'][] = 'btn-large';
+	        $form['actions']['delete']['#attributes']['class'][] = 'btn-danger';
+
+            $terms = db_query("
+				  SELECT *
+                  FROM  {node_type} WHERE type = :type
+				", array(':type' => $types ));
+
+				$items = array();
+				foreach ($terms as $term) {
+				   //$items[] = l($term->name, 'taxonomy/term/' . $term->tid) . ' (' . $term->node_count . ')';
+                  //echo "<pre>";print_r( $term->type );echo "</pre>";
+                  //echo "<pre>";print_r( $term->name );echo "</pre>";
+                  $items = array('type' => $term->type, 'name' => $term->name );
+				}
+
+           $title_names = "Разместить → ".$items['name']."";
+        drupal_set_title($title_names); ///--title h1
+
+        }
+
+
+     ///-- $types == 'company' $types == 'news'
+
+    //$form['options']['field_checkbox_example'] = $form['field_checkbox_example'];  // - помещаем поле в вертикальную вкладку.
+    //hide($form['field_checkbox_example']);                                         // - избавляемся от дубля, скрывая его.
+  }
+}
+
+
+/* field_mesto */
+function acs_preprocess_field(&$variables) {
+	if($variables['element']['#field_name'] == 'field_mesto') {
+
+	    //echo "<pre>";print_r( $variables['items'][0]['#lineage'] );echo "</pre>";
+	    //echo "<pre>";print_r( $variables['element']['#items']  );echo "</pre>";
+	     $lineage_ = array();
+	     foreach ( $variables['items'][0]['#lineage'] as $lineage ) {
+	       //echo "<pre>";print_r( $lineage );echo "</pre>";
+	       //echo "<pre>";print_r( $lineage['#href']  );echo "</pre>";
+	       //echo "<pre>";print_r( $lineage['#options']['entity']->tid  );echo "</pre>";
+	       if(isset($lineage['#href'])){
+	         $lineage['#href'] = "mesto/".$lineage['#options']['entity']->tid ;
+	       }
+	       $lineage_[] = $lineage;	     }
+
+		//echo "<pre>";print_r( $lineage_  );echo "</pre>";
+		$variables['items'][0]['#lineage'] = $lineage_;
+		//if($variables['items']['0']['#markup'] == 'thedefaultvalue') {
+			//$variables['items']['0']['#markup'] = '';
+		//}
+	}
+
+	//echo acs_calculate_age('1982-01-01');   //field_date
+	if($variables['element']['#field_name'] == 'field_birthday') {
+      //echo "<pre>";print_r( $variables['items'][0]['#markup'] );echo "</pre>";
+      //echo "<pre>";print_r( $variables );echo "</pre>";
+      $variables['label'] = "Возраст";
+      $variables['items'][0]['#markup'] = acs_helper::calculate_age($variables['element']['#items'][0]['value'])." лет";	}
+
+
+	if($variables['element']['#field_name'] == 'field_type') {
+      //echo "<pre>";print_r( $variables['items'][0]['#markup'] );echo "</pre>";
+      //echo "<pre>";print_r( $variables );echo "</pre>";
+      //dpm($variables);
+      //$variables['label'] = "Возраст";
+      //$variables['items'][0]['#markup'] = acs_helper::calculate_age($variables['element']['#items'][0]['value'])." лет";
+	}
+
+
+}
+
+
+function acs_form_global_filter_1_alter(&$form, &$form_state, $form_id) {
+
+  //echo "<pre>";print_r($form_id);echo "</pre>";
+  //echo "<pre>";print_r($form_state);echo "</pre>";
+  //устанавливаем значение по умолчанию и открываем глобальный фильтр (т.е передаем значение в глобальный фильтр из геолокации)
+
+
+  if( is_array($form['field_sity']['und']['#default_value']) && count($form['field_sity']['und']['#default_value'])==0){
+	  //echo "<pre>";print_r($form['field_mesto']['und']['#default_value']);echo "</pre>";
+	  //$_SERVER['REMOTE_ADDR'];
+	  $default = array();
+	  $tids_ = acs_helper::get_ip_info_mesto($_SERVER['REMOTE_ADDR']);
+	  //echo "<pre>";print_r($tids_);echo "</pre>";
+      if(count($tids_)>0){
+       foreach ($tids_ as $tid_) {
+	   //echo "<pre>";print_r($tid_);echo "</pre>";
+	    $default[] = $tid_->tid;
+	   }
+	   }else{$default = array(0 => 1, 1 => 221,  2 => 2558, 3 => 26127,);}
+
+	  ///$default = array(0 => 1, 1 => 221,  2 => 2558, 3 => 26127,);  //get geoip
+	  $form['field_sity']['und']['#default_value'] = $default;
+	  global_filter_set_on_session('field_sity', $default); // задает-передает значения в глобальный фильтр
+  }
+
+  //echo "<pre>";print_r( $form['submit']['#attributes']['class'] );echo "</pre>";
+  $form['submit']['#attributes']['class'][] = 'btn-large';
+  $form['submit']['#value'] = "ВЫБРАТЬ";
+
+}
+
+function acs_views_pre_render(&$view) {
+
+	  //print '<pre>' . check_plain(print_r($view, TRUE)) . '</pre>';
+
+	  if (($view->name == 'profiles')||($view->name == 'map')||($view->name == 'mesto') ) {
+
+    	  //dpm($view->build_info);
+    	  //$current_view = views_get_current_view();
+    	  $page_title = "";
+    	  //if(isset($view->display['default']->display_options['title'])){
+    	  //$page_title .= $view->display['default']->display_options['title']." - ";
+    	  $page_title .= $view->build_info['title']." - ";
+    	  //}else{    	  //}
+
+          $page_title .= $view->total_rows;
+    	  ////$view->build_info['title'] = $page_title;
+    	  $view->display_handler->set_option('title', $page_title);
+    	  $view->build_info['title'] = $page_title;
+	        ///print '<pre>' . check_plain(print_r($view->display_handler->set_option('title', $page_title), TRUE)) . '</pre>';
+	       ///$view->get_total_rows = 1;
+	       //$view->page_title .= ' ('. $view->total_rows .')';
+	     //print '<pre>' . check_plain(print_r($view, TRUE)) . '</pre>';
+	  }
+	}

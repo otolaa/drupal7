@@ -1,0 +1,681 @@
+<?php
+
+/**
+ * @file
+ * A kladr field using the Field API.
+ */
+
+function kladr_menu() {
+
+      $items = array();
+      //
+      $items['admin/config/kladr'] = array(
+	        'title' => 'kladr config',
+		    'description' => 'Settings for module',
+		    'page callback' => 'drupal_get_form',
+		    'page arguments' => array('kladr_admin_settings'),
+		    'file' => 'kladr.admin.inc',
+		    'access arguments' => array('administer site configuration'),
+	  );
+
+	  return $items;
+}
+
+
+
+/**
+ * Implements hook_field_info().
+ */
+function kladr_field_info() {
+   // возвращаем массив
+  return array(
+    'kladr_latlng' => array(
+      // имя нашего типа будет 'kladr'
+      'label' => t('kladr/map'),
+       // объяснение к нашему типу
+      'description' => t('kladr input.'),
+       // стандартный виджет, который будет отображаться сразу
+      // после того, как мы выберем тип поля
+      'default_widget' => 'kladr_latlng',
+      // стандартный формат, который будет
+      // отображаться сразу после того, как мы выберем тип поля
+      'default_formatter' => 'kladr_text',
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_validate().
+ */
+function kladr_field_validate($entity_type, $entity, $field, $instance, $langcode, $items, &$errors) {
+  foreach ($items as $delta => $item) {
+    if (!kladr_field_is_empty($item, $field)) {
+      switch (TRUE) {
+        case !is_numeric($item['lat']):
+          $errors[$field['field_name']][$langcode][$delta][] = array(
+            'error' => 'kladr_invalid_lat',
+            'message' => t('Invalid Latitude. Value must be numeric.'),
+          );
+          break;
+        case $item['lat'] > 90:
+        case $item['lat'] < -90:
+          $errors[$field['field_name']][$langcode][$delta][] = array(
+            'error' => 'kladr_invalid_lat',
+            'message' => t('Invalid Latitude. Value must be between 90 and -90.'),
+          );
+          break;
+      }
+
+      switch (TRUE) {
+        case !is_numeric($item['lng']):
+          $errors[$field['field_name']][$langcode][$delta][] = array(
+            'error' => 'kladr_invalid_lng',
+            'message' => t('Invalid Longitude. Value must be numeric.'),
+          );
+        case $item['lng'] > 180:
+        case $item['lng'] < -180:
+          $errors[$field['field_name']][$langcode][$delta][] = array(
+            'error' => 'kladr_invalid_lng',
+            'message' => t('Invalid Longitude. Value must be between 180 and -180'),
+          );
+          break;
+      }
+    }
+  }
+}
+
+	/**
+	 * Implements hook_field_presave().
+	 */
+	function kladr_field_presave($entity_type, $entity, $field, $instance, $langcode, &$items) {
+	  foreach ($items as $delta => $item) {
+	    // Precalculate some goodness.  //deg2rad - конвертирует градусы в радианы.  //Эта функция конвертирует number из градусов в радианы.
+	    $item['lat_sin'] = sin(deg2rad($item['lat']));
+	    $item['lat_cos'] = cos(deg2rad($item['lat']));
+	    $item['lng_rad'] = deg2rad($item['lng']);
+        //удаляем проделы
+	    $item['kod'] = trim($item['kod']);
+	    $item['zip'] = trim($item['zip']);
+	    $item['name'] = trim($item['name']);
+	    $item['type'] = trim($item['type']);
+	    $item['type_short'] = trim($item['type_short']);
+        //
+	    $item['city'] = trim($item['city']);
+	    $item['street'] = trim($item['street']);
+        $item['building'] = trim($item['building']);
+        $item['building_add'] = trim($item['building_add']);
+        $item['address'] = trim($item['address']);
+
+	    $items[$delta] = $item;
+
+
+	  }
+	}
+
+	/**
+	 * Implements hook_field_is_empty(). //Определите что составляет пустой пункт для типа области.
+	 */
+	function kladr_field_is_empty($item, $field) {
+	  if (empty($item['lat']) && (string) $item['lat'] !== '0'
+	   && empty($item['lng']) && (string) $item['lng'] !== '0') {
+	    return TRUE;
+	  }
+	}
+
+		/**
+		 * Implements hook_field_formatter_info().
+		    // хук для отображения формата для нашего поля
+		   // hook_field_formatter_info
+		 */
+		function kladr_field_formatter_info() {
+		  return array(
+		    'kladr_text' => array(
+		      'label' => t('Adress text-based formatter'),
+		      'field types' => array('kladr_latlng'),
+		    ),
+
+		    //--представление вывода
+
+		    'kladr_maps' => array(
+		      'label' => t('Maps text-based formatter'),
+		      'field types' => array('kladr_latlng'),
+		    ),
+
+
+		  );
+		}
+
+ ////----------------
+
+  // Определение свойст для поля yandex filds
+
+/////-------------
+
+	/**
+	 * Implements hook_field_formatter_view().    //Build a renderable array for a field value.
+	 */
+	function kladr_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+	  $element = array();
+
+	  switch ($display['type']) {
+
+	      case 'kladr_text':
+	      foreach ($items as $delta => $item) {
+	        //
+	        $element[$delta]['#markup'] = '<div>' . $item['address'] . '</div>';
+	      }
+	      break;
+
+	      case 'kladr_maps':
+	      $yandexViews = array();
+	      foreach ($items as $delta => $item) {
+
+	        //
+
+	        $kladr_height = variable_get('kladr_yandex_map_height', FALSE);
+            $kladr_height = isset($kladr_height) ? $kladr_height : '200px';
+	        //
+            $markers = array('lat' => (float)$item['lat'], 'lng' => (float)$item['lng']);
+
+            $mapHeader = "";
+            $mapBody = "";
+            $mapFooter = "";
+            $mapId = "";
+
+
+	           if(isset($entity->title)){
+
+		            $mapHeader = $item["address"];
+		            $mapId = $entity->nid;
+                    $mapBody = '<div><span>Индекс: '.$item["zip"].' </span><br><span>г. '.$item["city"].' '.$item['street'].'</span><br><span>д. '.$item["building"].'. № под.: '.$item["entrance"].'. кв./оф.: '.$item["room"].' </span></div>';
+                    //
+		            $mapFooter = l(t('Read more'), 'node/' . $entity->nid, array('html'=>FALSE));
+
+		         }else{
+			      //
+			      if(isset($entity->name)){
+	                  $mapHeader = $item["address"];
+	                  $mapBody = '';
+	                  $mapFooter = l(t('Read more'), 'user/' . $entity->uid, array('html'=>FALSE));
+	                  $mapId = $entity->uid;
+			      }
+
+			      if(isset($item['kod'])){                    $mapHeader = $item["address"];
+		            $mapId = $item['kod'];
+                    $mapBody = '<div><span>Индекс: '.$item["zip"].' </span><br><span>г. '.$item["city"].' '.$item['street'].'</span><br><span>д. '.$item["building"].'. № под.: '.$item["entrance"].'. кв./оф.: '.$item["room"].' </span></div>';
+                    //			      }
+              }
+
+            //--
+            $kladr_map_center = explode(',', variable_get('kladr_map_center', "37.6199,55.7537"));  //-- the Moscow (longitude,latitude)
+		    $kladr_map_preset = variable_get('kladr_map_preset', "islands#dotIcon");
+		    $kladr_map_iconcolor = variable_get('kladr_map_iconcolor', "#1faee9");
+
+		    $yandexViews[] = array(
+		         'markers' => $markers,
+                 'mapZoom' => (int)$item['vzoom'],
+		         'mapType' => $item['vid'],
+		         'mapHeader' =>  $mapHeader,
+		         'mapBody' => (string)$mapBody,
+		         'mapFooter' => $mapFooter,
+		         'mapid' => $mapId,
+		         'longitude' => $kladr_map_center[0],
+		         'latitude' => $kladr_map_center[1],
+		         'preset' => $kladr_map_preset,
+		         'iconcolor'=>$kladr_map_iconcolor,
+		      );
+
+		   //
+
+	        $element_array = array(
+                '#prefix' => '<div id="yandex-map-address" class="yandex-map-address">',
+		        '#suffix' => '</div>',
+		        '#markup' => '<div id="YMapsID'.$mapId.'" class="YMaps YMaps-cursor-grab" style="height: '.$kladr_height.'"></div>',
+	        ); //
+
+	        $element[$delta]['#markup'] = drupal_render($element_array);
+
+
+	      }
+
+	      //
+          drupal_add_js('http://api-maps.yandex.ru/2.1-dev/?lang=ru-RU&load=package.full', array('type' => 'external', 'weight'=>5));
+          drupal_add_js(drupal_get_path('module', 'kladr') . '/kladr_node.js', array('weight'=>6));
+	      //
+     	   drupal_add_js(array(
+					      'yandexViews' => array(
+					         'mark' => $yandexViews,
+					      ),
+					    ), 'setting');
+
+	      break;
+	    //
+	  }
+	  return $element;
+	}
+
+	/**
+	 * Implements hook_field_widget_info().
+	 */
+	function kladr_field_widget_info() {
+	  return array(
+	    'kladr_text' => array(
+	      'label' => t('kladr/maps'),
+	      'field types' => array('kladr_latlng'),
+	    ),
+
+
+	  );
+	}
+
+		/**
+		 * Implements hook_field_widget_form().
+		 */
+		function kladr_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+
+		  $id = $instance['id'] . '-' . $delta;
+
+		  //
+
+		  $lat_value = isset($items[$delta]['lat']) ? $items[$delta]['lat'] : '';
+		  $lng_value = isset($items[$delta]['lng']) ? $items[$delta]['lng'] : '';
+		  $vzoom_value = isset($items[$delta]['vzoom']) ? $items[$delta]['vzoom'] : '';
+		  $vid_value = isset($items[$delta]['vid']) ? $items[$delta]['vid'] : 'twirl#blueDotIcon';
+
+
+           //
+           if(isset($form['#type'])){
+            //
+            $typeField = 'textfield';
+           }else{ $typeField = 'hidden'; }
+
+           ///---
+           $kod_value = isset($items[$delta]['kod']) ? $items[$delta]['kod'] : '';
+           $zip_value = isset($items[$delta]['zip']) ? $items[$delta]['zip'] : '';
+           $name_value = isset($items[$delta]['name']) ? $items[$delta]['name'] : '';
+           $type_value = isset($items[$delta]['type']) ? $items[$delta]['type'] : '';
+           $type_short_value = isset($items[$delta]['type_short']) ? $items[$delta]['type_short'] : '';
+           ///--
+           $city_value = isset($items[$delta]['city']) ? $items[$delta]['city'] : '';
+           $street_value = isset($items[$delta]['street']) ? $items[$delta]['street'] : '';
+           $building_value = isset($items[$delta]['building']) ? $items[$delta]['building'] : '';
+           $building_add_value = isset($items[$delta]['building_add']) ? $items[$delta]['building_add'] : '';
+           $entrance = isset($items[$delta]['entrance']) ? $items[$delta]['entrance'] : '';
+           $room = isset($items[$delta]['room']) ? $items[$delta]['room'] : '';
+           $address_value = isset($items[$delta]['address']) ? $items[$delta]['address'] : '';
+
+		  $element += array(
+		    '#delta' => $delta,
+		  );
+
+		  // Wrap in a fieldset for single fields
+		  if ($field['cardinality'] == 1) {
+		    $element['#type'] = 'fieldset';
+		  }
+
+
+		  $element['kladr_token'] = array();
+		  $element['kladr_key'] = array();
+		  ///--
+		  $element['lat'] = array();
+		  $element['lng'] = array();
+          ///--- zom
+		  $element['vzoom'] = array();
+		  $element['vid'] = array();
+          ///--kladr
+		  $element['kod'] = array();
+		  $element['zip'] = array();
+		  $element['name'] = array();
+		  $element['type'] = array();
+		  $element['type_short'] = array();
+		  //--city street
+		  $element['city'] = array();
+		  $element['street'] = array();
+		  $element['building'] = array();
+		  $element['building_add'] = array();
+		  $element['entrance'] = array();
+		  $element['room'] = array();
+		  $element['address'] = array();
+
+		  switch ($instance['widget']['type']) {
+
+		    case 'kladr_text':
+
+              $kladr_token = variable_get('kladr_token', "51dfe5d42fb2b43e3300006e");
+              $kladr_key = variable_get('kladr_key', "86a2c2a06f1b2451a87d05512cc2c3edfdf41969");
+              //
+
+              $element['kladr_token'] += array(
+		        '#title' => t('token'),
+		        '#type' => 'hidden',      //hidden   //textfield
+		        '#default_value' => $kladr_token,
+		        //
+		        '#attributes' => array('id'=> 'kladr_token'),
+		        //
+		        '#required' => $instance['required'],
+		      );
+
+		      $element['kladr_key'] += array(
+		        '#title' => t('key'),
+		        '#type' => 'hidden',      //hidden   //textfield
+		        '#default_value' => $kladr_key,
+		        //
+		        '#attributes' => array('id'=> 'kladr_key'),
+		        //
+		        '#required' => $instance['required'],
+		      );
+
+		      ///---
+		      $element['lat'] += array(
+		        '#title' => t('Latitude'),
+		        '#type' => 'hidden',      //hidden   //textfield
+		        '#default_value' => $lat_value,
+		        '#size' => 30,
+		        '#maxlength' => 30,
+		        '#attributes' => array('id'=> 'point_lat'),
+		        //
+		        '#required' => $instance['required'],
+		      );
+		      $element['lng'] += array(
+		        '#title' => t('Longitude'),
+		        '#type' => 'hidden',    //hidden
+		        '#default_value' => $lng_value,
+		        '#size' => 30,
+		        '#maxlength' => 30,
+		        '#attributes' => array('id'=> 'point_lon'),
+		        //
+		        '#required' => $instance['required'],
+		      );
+
+		      $element['vzoom'] += array(
+		        '#title' => t('Zoom'),
+		        '#type' => 'hidden',    //hidden
+		        '#default_value' => $vzoom_value,
+		        '#size' => 30,
+		        '#maxlength' => 30,
+		        '#attributes' => array('id'=> 'vzoom'),
+		        //
+		        '#required' => $instance['required'],
+		      );
+
+		      $element['vid'] += array(
+		        '#title' => t('Style'),
+		        '#description' => 'http://api.yandex.ru/maps/jsapi/doc/ref/reference/styles.xml',
+		        '#type' => 'hidden',    //hidden     textfield
+		        '#default_value' => $vid_value,
+		        '#size' => 30,
+		        '#maxlength' => 30,
+		        '#attributes' => array('id'=> 'vid'),
+		        //
+		        '#required' => $instance['required'],
+		      );
+
+
+               //-- нужные
+	          $element['kod'] += array(
+			        '#title' => t('kod - id'),
+			        '#type' => 'hidden',    //hidden     textfield
+			        '#default_value' => $kod_value,
+			        //
+			        '#maxlength' => 255,
+			        '#attributes' => array('id'=> 'kod_kladr'),
+			        //
+			        '#required' => $instance['required'],
+			      );
+
+			   $element['zip'] += array(
+			        '#title' => t('zip'),
+			        '#type' => 'hidden',    //hidden     textfield
+			        '#default_value' => $zip_value,
+			        //
+			        '#maxlength' => 255,
+			        '#attributes' => array('id'=> 'zip_kladr'),
+			        //
+			        '#required' => $instance['required'],
+			      );
+
+			   $element['name'] += array(
+			        '#title' => t('name'),
+			        '#type' => 'hidden',    //hidden     textfield
+			        '#default_value' => $name_value,
+			        //
+			        '#maxlength' => 255,
+			        '#attributes' => array('id'=> 'name_kladr'),
+			        //
+			        '#required' => $instance['required'],
+			      );
+
+			   $element['type'] += array(
+			        '#title' => t('type'),
+			        '#type' => 'hidden',    //hidden     textfield
+			        '#default_value' => $type_value,
+			        //'#size' => 30,
+			        '#maxlength' => 255,
+			        '#attributes' => array('id'=> 'type_kladr'),
+			        //'#attributes' => array('style'=> 'display:none'),
+			        '#required' => $instance['required'],
+			      );
+
+			   $element['type_short'] += array(
+			        '#title' => t('type_short'),
+			        '#type' => 'hidden',    //hidden     textfield
+			        '#default_value' => $type_short_value,
+			        //
+			        '#maxlength' => 255,
+			        '#attributes' => array('id'=> 'type_short_kladr'),
+			        //
+			        '#required' => $instance['required'],
+			      );
+
+			  ///--- city street building
+               $element['city'] += array(
+			        '#title' => t('Город'),
+			        '#type' => 'textfield',    //hidden     textfield
+			        '#default_value' => $city_value,
+			        //
+			        '#maxlength' => 255,
+			        '#attributes' => array('id'=> 'city'),
+			        //
+			        '#required' => $instance['required'],
+			      );
+
+			   $element['street'] += array(
+			        '#title' => t('Улица'),
+			        '#type' => 'textfield',    //hidden     textfield
+			        '#default_value' => $street_value,
+			        //
+			        '#maxlength' => 255,
+			        '#attributes' => array('id'=> 'street'),
+			        //
+			        '#required' => $instance['required'],
+			      );
+
+			   $element['building'] += array(
+			        '#title' => t('Номер дома'),
+			        '#type' => 'textfield',    //hidden     textfield
+			        '#default_value' => $building_value,
+			        //
+			        '#maxlength' => 255,
+			        '#attributes' => array('id'=> 'building'),
+			        //
+			        '#required' => false,
+			      );
+
+			   $element['building_add'] += array(
+			        '#title' => t('Корпус/строение'),
+			        '#type' => 'textfield',    //hidden     textfield
+			        '#default_value' => $building_add_value,
+			        //
+			        '#maxlength' => 255,
+			        '#attributes' => array('id'=> 'building_add'),
+			        //
+			        '#required' => false,
+			      );
+
+                 $element['entrance'] += array(
+			        '#title' => t('№ подъезда'),
+			        '#type' => 'textfield',    //hidden     textfield
+			        '#default_value' => $entrance,
+			        //'#size' => 30,
+			        '#maxlength' => 255,
+			        '#attributes' => array('id'=> 'entrance'),
+			        //'#attributes' => array('style'=> 'display:none'),
+			        '#required' => false,
+			      );
+
+			    $element['room'] += array(
+			        '#title' => t('Кв./оф.'),
+			        '#type' => 'textfield',    //hidden     textfield
+			        '#default_value' => $room,
+			        //'#size' => 30,
+			        '#maxlength' => 255,
+			        '#attributes' => array('id'=> 'room'),
+			        //'#attributes' => array('style'=> 'display:none'),
+			        '#required' => false,
+			      );
+
+			   $element['address'] += array(
+			        '#title' => t('address'),
+			        '#type' => 'hidden',    //hidden     textfield
+			        '#default_value' => $address_value,
+			        //'#size' => 30,
+			        '#maxlength' => 255,
+			        '#attributes' => array('id'=> 'address'),
+			        //'#attributes' => array('style'=> 'display:none'),
+			        '#required' => false,
+			      );
+
+              ///
+
+		       $element['addreses'] = array(
+		        '#type' => 'item',
+		        '#title' => $element['#title'],
+		        '#prefix' => '<div id="yandex-map-address-' . $id . '" class="yandex-map-address">',
+		        '#suffix' => '<div class="destroyButton_"><input type="button" id="destroyButton" value="УДАЛИТЬ МЕТКУ" class="form-submit btn"></div></div>',
+		        '#markup' => '<div id="YMapsID" class="YMaps YMaps-cursor-grab"></div>',
+		        '#required' => $instance['required'],
+		      );
+
+		      $element['kladr']['#attached']['css'][] = drupal_get_path('module', 'kladr') . '/kladr.css';
+		      $element['kladr']['#attached']['css'][] = drupal_get_path('module', 'kladr') . '/css/jquery.kladr.min.css';
+
+		      //-- default maps
+		      $kladr_map_center = explode(',', variable_get('kladr_map_center', "37.6199,55.7537"));  //-- the Moscow (longitude,latitude)
+		      $kladr_map_preset = variable_get('kladr_map_preset', "islands#dotIcon");
+		      $kladr_map_iconcolor = variable_get('kladr_map_iconcolor', "#1faee9");
+		      $mymap_['mymap'] = array('longitude' => $kladr_map_center[0], 'latitude' => $kladr_map_center[1], 'preset' => $kladr_map_preset, 'iconcolor'=>$kladr_map_iconcolor);
+
+              $element['kladr']['#attached']['js'][] = array(
+                'data' => $mymap_,
+                'type' => 'setting',
+                'weight'=>5,
+              );
+		      $element['kladr']['#attached']['js'][] = array(
+		        'data' => 'http://api-maps.yandex.ru/2.1-dev/?lang=ru-RU&load=package.full',
+		        'type' => 'external',
+		        'weight'=>6,
+		      );
+		      $element['kladr']['#attached']['js'][] = array(
+		        'data' => drupal_get_path('module', 'kladr') . '/js/jquery.kladr.min.js',
+		        'type' => 'file',
+		        'weight'=>7,
+		      );
+		      $element['kladr']['#attached']['js'][] = array(
+		        'data' => drupal_get_path('module', 'kladr') . '/kladr-api.js',
+		        'type' => 'file',
+		        'weight'=>8,
+		      );
+		      //
+
+		     $element['field_type'] = array('#type' => 'value', '#value' => $field['type']);
+		     $element['#element_validate'] = array('kladr_field_widget_validate');
+             $element['#element_validate'][] = 'kladr_field_widget_set_value';
+
+		     // echo "<pre>";print_r( $entity );echo "</pre>";
+
+		      break;
+
+		  }
+		  return $element;
+		}
+
+
+/**
+ * Validation handler for geolocation_googlemaps_field_widget_form().
+ */
+function kladr_field_widget_validate($element, &$form_state, $form) {
+  if ($element['#required']) {
+    if (!$element['lat']['#value'] || !$element['lng']['#value']) {
+      form_error($element, t('!name field is required.', array('!name' => $element['#title'])));
+    }
+  }
+  else {
+    switch (TRUE) {
+      case $element['lng']['#value'] && !$element['lat']['#value']:
+        form_error($element, t('!name field is incomplete, latitude value is missing.', array('!name' => $element['#title'])));
+        break;
+
+      case !$element['lng']['#value'] && $element['lat']['#value']:
+        form_error($element, t('!name field is incomplete, longitude value is missing.', array('!name' => $element['#title'])));
+        break;
+    }
+  }
+}
+
+function kladr_field_widget_set_value($element, &$form_state, $form) {
+  $values = &drupal_array_get_nested_value($form_state['values'], $element['#parents']);
+  if ($values['field_type'] == 'geofield') {
+    // Geofield needs the values in their own format which is exactly what
+    // geofield_compute_values does, but we have to change first the longitude
+    // key because geofield uses a different one.
+    $values['lon'] = $values['lng'];
+    $values = geofield_compute_values($values);
+  }
+}
+
+/**
+ * Implements hook_field_widget_error().
+ */
+function kladr_field_widget_error($element, $error, $form, &$form_state) {
+  switch ($error['error']) {
+    case 'kladr_invalid_lat':
+      form_error($element['lat'], $error['message']);
+      break;
+    case 'kladr_invalid_lng':
+      form_error($element['lng'], $error['message']);
+      break;
+  }
+}
+
+
+/**
+ * Implements hook_token_info().
+ */
+function kladr_token_info() {
+  $tokens['address'] = array(
+    'name' => t('address'),
+    'description' => t('The address of the node.'),
+  );
+  return array(
+    'tokens' => array('node' => $tokens),
+  );
+}
+
+/**
+ * Implements hook_tokens().
+ */
+function kladr_tokens($type, $tokens, array $data = array(), array $options = array()) {
+  $replacements = array();
+
+  if ($type == 'node' && !empty($data['node'])) {
+    $node = $data['node'];
+
+    foreach ($tokens as $name => $original) {
+      if ($name == 'address') {
+        $replacements[$original] = $node->field_kladr['und'][0]['address'];
+      }
+    }
+  }
+
+  return $replacements;
+}
