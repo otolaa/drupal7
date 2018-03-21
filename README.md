@@ -1,3 +1,3 @@
-# drupal7
-drupal7, modules, themes
+# drupal 7
+drupal 7, modules, themes
 Exchange Rates, weather, Kladr
