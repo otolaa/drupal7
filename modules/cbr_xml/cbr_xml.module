@@ -1,144 +1,136 @@
 <?php
 
-    /**
-	 * Реализация hook_menu()
-	 */
-	function cbr_xml_menu() {
-	  $items = array();
+/**
+ * hook_menu()
+ */
+function cbr_xml_menu() {
+  $items = array();
+  $items['cbrxml'] = array(
+    'title' => 'КУРС ВАЛЮТ | CBR.RU',
+    'page callback' => 'cbr_xml_callback',
+    'page arguments' => array(1),
+    'access callback' => 'cbr_xml_access',
+    'access arguments' => array(1),
+    //'type' => MENU_LOCAL_TASK,
+    //'weight' => 10,
+  );
+  return $items;
+}
 
-      $items['cbrxml'] = array(
-	    'title' => 'КУРС ВАЛЮТ | CBR.RU',
-	    'page callback' => 'cbr_xml_callback',
-	    'page arguments' => array(1),
-	    'access callback' => 'cbr_xml_access',
-	    'access arguments' => array(1),
-	    //'type' => MENU_LOCAL_TASK,
-	    //'weight' => 10,
-	  );
+function cbr_xml_access($account) {
+    //return ($node->type == 'catalog');
+    ///return (($GLOBALS['user']->uid == $account->uid) || user_access('administer users')) && $account->uid > 0;
+    return true;
+}
 
-      return $items;
-	  }
+function cbr_xml_callback($account) {
+    $output = "";
+    //
+    $vb_ = cbr_xml_get_cbr();
+    $output .= "<div class='headers'>".$vb_['headers']."</div>";
+    $header = array(
+        array('data' => "Цифр. код", 'field' => 'id'),
+        array('data' => "Букв. код", 'field' => 'title'),
+        array('data' => "Единиц", 'field' => 'quant'),
+        array('data' => "Валюта", 'field' => 'description'),
+        array('data' => "Курс", 'field' => 'rates'),
+        //  array('data' => '↑↓', 'field' => 'index'),
+    );
 
-	  function cbr_xml_access($account) {
-	  //return ($node->type == 'catalog');
-	  ///return (($GLOBALS['user']->uid == $account->uid) || user_access('administer users')) && $account->uid > 0;
-	  return true;
-	}
+    $cbr_tyday = array();
+    $cbr_tyday = $vb_['cbr'];
+    $output .= theme('table', array('header' => $header, 'rows' => $cbr_tyday));
+    return $output;
 
-	function cbr_xml_callback($account) {
-      $output = "";
-
-      //$output .= '<pre>' . print_r( cbr_get_cbr(), TRUE) . '</pre>';
-      $vb_ = cbr_xml_get_cbr();
-	   //запрашиваю файл
-
-
-			 $output .= "<div class='headers'>".$vb_['headers']."</div>";
-
-			  $header = array(
-			      array('data' => "Цифр. код", 'field' => 'id'),
-				  array('data' => "Букв. код", 'field' => 'title'),
-				  array('data' => "Единиц", 'field' => 'quant'),
-				  array('data' => "Валюта", 'field' => 'description'),
-				  array('data' => "Курс", 'field' => 'rates'),
-				//  array('data' => '↑↓', 'field' => 'index'),
-				);
-
-			 $cbr_tyday = array();
-			 $cbr_tyday = $vb_['cbr'];
-			 $output .= theme('table', array('header' => $header, 'rows' => $cbr_tyday));
-
-
-
-      return $output;
-
-	}
+}
 
 // Сообщаем Drupal о том, что существует такой блок.
-function cbr_xml_block_info()
-	{
+function cbr_xml_block_info(){
 	$blocks = array();
 		$blocks['cbr_xml_block'] = array(
 			'info' => t('КУРС ВАЛЮТ CBR.RU'),
 			'cache' => DRUPAL_NO_CACHE, // Режим работы кэша.
 			);
 	return $blocks;
-	}
+}
 
 // Выводим блок на сайте.
-function cbr_xml_block_view($delta = '')
-	{
-	  if($delta == 'cbr_xml_block')
-		{
-		 ///$content_arr = views_embed_view('tastana', $display_id = 'default', 12252, 'novostroiki', 'all');
-		  $content = "";
-		  //$content .= "";
-          $vb_ = cbr_xml_get_cbr();
+function cbr_xml_block_view($delta = ''){
+  if($delta == 'cbr_xml_block'){
+    ///$content_arr = views_embed_view('tastana', $display_id = 'default', 12252, 'novostroiki', 'all');
+      $content = "";
+      //$content .= "";
+      $vb_ = cbr_xml_get_cbr();
 
+          $header = array(
+              //array('data' => 'ID', 'field' => 'id'),
+              array('data' => '<span class="currency_kod">КОД</span>', ),
+              array('data' => '<span class="currency_kod">ДАТА</span>', ),
+              array('data' => '<span class="currency_kod">КУРС</span>', ),
+              //array('data' => '', ),
+            );
 
-			  $header = array(
-			      //array('data' => 'ID', 'field' => 'id'),
-				  array('data' => '<span class="currency_kod">КОД</span>', ),
-				  array('data' => '<span class="currency_kod">ДАТА</span>', ),
-				  array('data' => '<span class="currency_kod">КУРС</span>', ),
-				  //array('data' => '', ),
-				);
+         $content .= theme('table', array('header' => $header, 'rows' => $vb_['cbr_block']));
+         $content .= $vb_['oll'];
 
-			 $content .= theme('table', array('header' => $header, 'rows' => $vb_['cbr_block']));
-			 $content .= $vb_['oll'];
+        //
+        $block = array(
+            'subject' => t('КУРС ВАЛЮТ'),
+            'content' => $content,
+            );
+    }
+    return $block;
+}
 
+/* XML_RETURN */
+function cbr_parser_xml_return(){
+    $cbr_xml_ = NULL;
+    $date_ = date("d/m/Y", time());
+    $url = "http://www.cbr.ru/scripts/XML_daily.asp?date_req=".$date_."";
+    $xml = simplexml_load_file($url);
+    if($xml ===  FALSE){
+        // deal with error
+        return FALSE;
+    }
 
+    //
+    $dt_ = (string)$xml->attributes()->Date;
+    $header_ = "Центральный банк Российской Федерации установил с ". $dt_ ." следующие курсы иностранных валют к рублю Российской Федерации без обязательств Банка России покупать или продавать указанные валюты по данному курсу";
 
-         ///$content .= "---";
+    $cbr = array();
+    $i=0;
+    foreach ($xml->Valute AS $currency_){
+        foreach ($currency_ AS $val_){
+            $cbr[$i][] = (string)$val_;
+        }
+        $i++;
+    }
 
-			$block = array(
-				'subject' => t('КУРС ВАЛЮТ'),
-				'content' => $content,
-				);
-		}
-	 return $block;
-	}
+    $cbr_block_ = array();
+    $cbr_block_[0] = array('names'=> ['data' => ['#markup' => '<span class="currency_title" title="'.$cbr[10][3].'">'.$cbr[10][1].' / RUB</span>']], 'date'=>['data' => ['#markup' => '<span class="currency_date">'.$dt_ .'</span>']], 'rates'=>['data' => ['#markup' => '<span class="currency_description" title="За '.$cbr[10][2].'">'.$cbr[10][4].'</span>']]);
+    $cbr_block_[1] = array('names'=> ['data' =>['#markup' => '<span class="currency_title" title="'.$cbr[11][3].'">'.$cbr[11][1].' / RUB</span>']], 'date'=>['data' => ['#markup' => '<span class="currency_date">'.$dt_ .'</span>']], 'rates'=>['data' => ['#markup' => '<span class="currency_description" title="За '.$cbr[11][2].'">'.$cbr[11][4].'</span>']]);
+    $cbr_block_[2] = array('names'=> ['data' =>['#markup' => '<span class="currency_title" title="'.$cbr[2][3].'">'.$cbr[2][1].' / RUB</span>']], 'date'=>['data' => ['#markup' => '<span class="currency_date">'.$dt_ .'</span>']], 'rates'=>['data' => ['#markup' => '<span class="currency_description" title="За '.$cbr[2][2].'">'.$cbr[2][4].'</span>']]);
 
+    $cbr_xml_ = array('headers'=>$header_, 'oll'=> "<div class='val'><a href='/cbrxml'>ВЕСЬ КУРС ВАЛЮТ</a></div>", 'cbr_block'=>$cbr_block_,  'cbr'=>$cbr,);
+    return $cbr_xml_;
+}
 
 /**
  * Return weather.
  */
 function cbr_xml_get_cbr($ignore_cache = FALSE) {
-  if (!$ignore_cache && ($cache = cache_get('cbr_xml'))) {
-    $cbr_xml_ = $cache->data;
-  }
-  else {
-
-    $date_ = date("d/m/Y", time());
-
-	$url = "http://www.cbr.ru/scripts/XML_daily.asp?date_req=".$date_."";
-    $xml = simplexml_load_file($url);
-
-	//print '<pre>' . check_plain(print_r( (string)$xml->attributes()->Date, TRUE)) . '</pre>';
-	//print '<pre>' . check_plain(print_r($xml, TRUE)) . '</pre>';
-	$dt_ = (string)$xml->attributes()->Date;
-	$header_ = "Центральный банк Российской Федерации установил с ". $dt_ ." следующие курсы иностранных валют к рублю Российской Федерации без обязательств Банка России покупать или продавать указанные валюты по данному курсу";
-
-    $cbr = array();
-    $i=0;
-    foreach ($xml->Valute AS $currency_){
-
-      foreach ($currency_ AS $val_){
-        $cbr[$i][] = (string)$val_;
-      }
-      $i++;
+    if (!$ignore_cache && ($cache = cache_get('cbr_xml'))) {
+        $cbr_xml_ = $cache->data;
+    }else{
+        $cbr_xml_ = cbr_parser_xml_return();
+        if($cbr_xml_){
+            file_put_contents(dirname(__FILE__)."/parser_cbr.txt", serialize($cbr_xml_));
+            cache_set('cbr', $cbr_xml_);
+        }else{
+            $cbr_xml_ = unserialize(file_get_contents(dirname(__FILE__)."/parser_cbr.txt"));
+        }
     }
-
-    $cbr_block_ = array();
-    $cbr_block_[0] = array('names'=> '<span class="currency_title">'.$cbr[10][1].' / RUB</span>', 'date'=>'<span class="currency_date">'.$dt_ .'</span>', 'rates'=>'<span class="currency_description">'.$cbr[10][4].'</span>');  //USD
-    $cbr_block_[1] = array('names'=> '<span class="currency_title">'.$cbr[9][1].' / RUB</span>', 'date'=>'<span class="currency_date">'.$dt_ .'</span>', 'rates'=>'<span class="currency_description">'.$cbr[9][4].'</span>');  //USD
-    $cbr_block_[2] = array('names'=> '<span class="currency_title">'.$cbr[2][1].' / RUB</span>', 'date'=>'<span class="currency_date">'.$dt_ .'</span>', 'rates'=>'<span class="currency_description">'.$cbr[2][4].'</span>');  //USD
-
-    $cbr_xml_ = array('headers'=>$header_, 'oll'=> "<div class='val'><a href='/cbrxml'>ВЕСЬ КУРС ВАЛЮТ</a></div>", 'cbr_block'=>$cbr_block_,  'cbr'=>$cbr,);
-    cache_set('cbr', $cbr_xml_);
-  }
-
-  return $cbr_xml_;
+    return $cbr_xml_;
 }
 
 
@@ -154,11 +146,8 @@ function cbr_xml_cron() {
 
 
 function cbr_xml_init() {
-
  // The path to the mysite module.
  $path = drupal_get_path('module', 'cbr_xml');
-
  // Include mysite.css.
  drupal_add_css($path . '/css/cbr_xml.css');
-
 }
