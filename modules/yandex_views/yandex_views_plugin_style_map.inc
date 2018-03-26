@@ -203,7 +203,7 @@
 	    //drupal_add_js('http://maps.google.com/maps/api/js?sensor=false', array('type' => 'external'));
 	    //drupal_add_js(drupal_get_path('module', 'yandex_views') . '/yandex_views.js');
 	    //http://api-maps.yandex.ru/2.0/?load=package.full&lang=ru-RU
-	    drupal_add_js('http://api-maps.yandex.ru/2.1-dev/?lang=ru-RU&load=package.full', array('type' => 'external'));
+	    drupal_add_js('https://api-maps.yandex.ru/2.1/?lang=ru_RU', array('type' => 'external'));
 	    drupal_add_js(drupal_get_path('module', 'yandex_views') . '/yandex.js');
 
 		    drupal_add_js(array(

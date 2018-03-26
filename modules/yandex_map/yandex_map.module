@@ -5,7 +5,8 @@
  * A yandex_map field using the Field API.
  */
 
-function yandex_map_menu() {
+function yandex_map_menu() {
+
   $items = array();
   $items['admin/config/yandex_map'] = array(
         'title' => 'Yandex map config',
@@ -15,7 +16,8 @@ function yandex_map_menu() {
 	    'file' => 'yandex_map.admin.inc',
 	    'access arguments' => array('administer site configuration'),
   );
-  return $items;}
+  return $items;
+}
 
 
 
@@ -173,12 +175,14 @@ function yandex_map_field_validate($entity_type, $entity, $field, $instance, $la
 
 			      // from user
 
-			      if(isset($entity->name)){
+			      if(isset($entity->name)){
+
 	                  $mapHeader = $entity->name;
 	                  $mapBody = '';
 	                  $mapFooter = l(t('Read more'), 'user/' . $entity->uid, array('html'=>FALSE));
 	                  $mapId = $entity->uid;
-			      }
+
+			      }
 
               }
 
@@ -216,7 +220,7 @@ function yandex_map_field_validate($entity_type, $entity, $field, $instance, $la
 	      }
 
 	      //
-          drupal_add_js('http://api-maps.yandex.ru/2.1-dev/?lang=ru-RU&load=package.full', array('type' => 'external', 'weight'=>5));
+          drupal_add_js('https://api-maps.yandex.ru/2.1/?lang=ru_RU', array('type' => 'external', 'weight'=>5));
           drupal_add_js(drupal_get_path('module', 'yandex_map') . '/yandex_map_node.js', array('weight'=>6));
 	      //
      	   drupal_add_js(array(
@@ -258,7 +262,8 @@ function yandex_map_field_validate($entity_type, $entity, $field, $instance, $la
            //
            if(isset($form['#type'])){
             //
-            $typeField = 'textfield';           }else{ $typeField = 'hidden'; }
+            $typeField = 'textfield';
+           }else{ $typeField = 'hidden'; }
 
            ///---
 		  $vzoom_value = isset($items[$delta]['vzoom']) ? $items[$delta]['vzoom'] : '';
@@ -336,7 +341,7 @@ function yandex_map_field_validate($entity_type, $entity, $field, $instance, $la
 
 		      $element['yandex_map']['#attached']['css'][] = drupal_get_path('module', 'yandex_map') . '/yandex_map.css';
 		      $element['yandex_map']['#attached']['js'][] = array(
-		        'data' => 'http://api-maps.yandex.ru/2.1-dev/?lang=ru-RU&load=package.full',
+		        'data' => 'https://api-maps.yandex.ru/2.1/?lang=ru_RU',
 		        'type' => 'external',
 		        'weight'=>6,
 		      );
