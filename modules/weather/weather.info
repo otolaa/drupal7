@@ -1,0 +1,9 @@
+name = Weather
+description = weather in your city
+core = 7.x
+configure = "admin/config/weather"
+version = "7.x-1.0"
+files[] = weatherClass.inc
+files[] = weather.admin.inc
+files[] = weather.module
+package = Other

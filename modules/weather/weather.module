@@ -1,0 +1,153 @@
+<?php
+
+// hook_menu()
+function weather_menu() {
+    $items = [];
+    //
+    $items['admin/config/weather'] = array(
+        'title' => 'weather config',
+        'description' => 'Settings for weather module',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('weather_admin_settings'),
+        'file' => 'weather.admin.inc',
+        'access arguments' => array('administer site configuration'),
+    );
+
+    $items['weather'] = array(
+        'title' => 'Погода',
+        'page callback' => 'weather_callback',
+        'page arguments' => array(1),
+        'access callback' => 'weather_access',
+        'access arguments' => array(1),
+        //'type' => MENU_LOCAL_TASK,
+        //'weight' => 10,
+    );
+    return $items;
+}
+
+// access
+function weather_access($account) {
+  return true;
+}
+
+// page weather
+function weather_callback($account) {
+    $output = "";
+    $WXG = weather_get();
+    if(!$WXG){
+        return $output;
+    }else{
+        drupal_set_title($WXG['HEADER_CURRENT']);
+        $output .= $WXG['HEADER'];
+        if(count($WXG['WEEK_TABLE'])) {
+            //
+            foreach ($WXG['WEEK_TABLE'] as $t => $DA) {
+                //
+                $header = array(
+                    array('data' => $DA['DAY'], 'colspan' => 3, 'class'=>'weather-header')
+                );
+                foreach ($WXG['HEADER_TABLE'] as $hdr) {
+                    $header[] = array('data' => $hdr, 'class'=>'weather-header');
+                }
+                $rows[] = $header;
+                foreach ($DA['ITEMS'] as $DT) {
+                    $r = array();
+                    foreach ($DT as $code => $dArr) {
+                        $dArr = ($code == 1 ? '<i class="' . $dArr . '"></i>' : $dArr);
+                        $r['date_' . $code] = ['data' => is_array($dArr) ? implode("<br>", $dArr) : $dArr];
+                    }
+                    $rows[] = $r;
+                }
+                //
+            }
+            $output .= theme('table', ['header' => [], 'rows' => $rows?$rows:[], 'attributes'=>['class'=>['weather-controller-modules-table']]]);
+        }
+    }
+    return $output;
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function weather_block_info() {
+  return array(
+    'weather' => array(
+      'info' => t('Погода'),
+      'cache' => DRUPAL_NO_CACHE,
+    ),
+  );
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function weather_block_view($delta = '') {
+    $content = "";
+    $block = [];
+    if($delta == 'weather'){
+        $WXG = weather_get();
+        if(!$WXG){
+            return $block;
+        }else{
+            if(!empty($WXG['WEEK_TABLE'][0])){
+                // header construction
+                $DA = $WXG['WEEK_TABLE'][0];
+                $header = array(
+                    array('data' => $DA['DAY'], 'colspan' => 3),
+                    //
+                );
+                $rows = [];
+                foreach ($DA['ITEMS'] as $DT) {
+                    $r = [];
+                    $r['date_0'] = ['data' => implode("<br>", $DT[0]), 'class'=>'weather-block-text'];
+                    $r['date_1'] = ['data' => '<i class="'.$DT[1].'"></i>'];
+                    $r['date_2'] = ['data' => $DT[2], 'class'=>'weather-block-text'];
+                    $rows[] = $r;
+                }
+                $content .= theme('table', array('header' => $header, 'rows' => $rows?$rows:[], 'attributes'=>['class'=>['weather-block-modules-table']]));
+                $content .= "<div class='weather-url-pages'><a href='/weather'>" . $WXG['HEADER'] . "</a></div>";
+                //
+                $block['subject'] = $WXG['HEADER_CURRENT'];
+            }
+        }
+    }
+    $block['content'] = $content;
+    return $block;
+}
+
+/**
+ * Return weather.
+ */
+function weather_get($ignore_cache = FALSE) {
+    $weather = Null;
+    if (!$ignore_cache && ($cache = cache_get('weather'))) {
+        $weather = $cache->data;
+    }else{
+        $weather = weatherClass::WeatherParserXpath();
+        if($weather){
+            // Here you need an algorithm to save the xml file on the server
+            file_put_contents(dirname(__FILE__)."/parser_weather.txt", serialize($weather));
+            // save the array to the cache
+            cache_set('weather', $weather);
+        }else{
+            $weather = unserialize(file_get_contents(dirname(__FILE__)."/parser_weather.txt"));
+        }
+    }
+    return $weather;
+}
+
+/**
+ * Implements hook_cron().
+ */
+function weather_cron() {
+  if (REQUEST_TIME - variable_get('cron_last') > 60*60) {
+    weather_get(TRUE);
+  }
+}
+
+function weather_init() {
+   // The path to the mysite module.
+   $path = drupal_get_path('module', 'weather');
+   // Include mysite.css.
+   drupal_add_css($path . '/css/weather.css');
+}
