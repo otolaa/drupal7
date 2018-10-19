@@ -1,0 +1,150 @@
+<?php
+
+// hook_menu()
+function cbr_menu() {
+    $items = [];
+    $items['cbr'] = [
+        'title' => 'КУРС ВАЛЮТ | CBR.RU',
+        'page callback' => 'cbr_callback',
+        'page arguments' => array(1),
+        'access callback' => 'cbr_access',
+        'access arguments' => array(1),
+        //'type' => MENU_LOCAL_TASK,
+        //'weight' => 10,
+    ];
+    return $items;
+}
+
+function cbr_access($account) {
+    return true;
+}
+
+function cbr_callback($account) {
+    $output = "";
+    $CBR = cbr_get();
+    $fruit = array_shift($CBR);
+    $second = array_shift($CBR);
+    foreach ($fruit['ITEMS'] as $k => &$cur) {
+        //
+        $cur[4] = (float)str_replace(",", ".", $cur[4]);
+        $difference = round($cur[4] - (float)str_replace(",", ".", $second['ITEMS'][$k][4]), 4);
+        $cur[4] = ['data' => $cur[4].($difference>0?"↑":"↓"), 'class'=>'currency_description '.($difference>0?'UP':'DOWN').''];
+        $cur[] = ['data' => ($difference>0?"+":"").$difference, 'class'=>'currency_date '.($difference>0?'UP':'DOWN').''];
+    }
+    $header = [
+        ['data' => "Цифр. код"],
+        ['data' => "Букв. код"],
+        ['data' => "Единиц"],
+        ['data' => "Валюта"],
+        ['data' => "Курс"],
+        ['data' => '↑↓'],
+    ];
+    //
+    $rows = $fruit['ITEMS'];
+    $output .= theme('table', array('header' => $header, 'rows' => $rows?$rows:[]));
+    return $output;
+
+}
+
+// We inform Drupal that there is such a block.
+function cbr_block_info(){
+	$blocks = [];
+		$blocks['cbr_block'] = [
+			'info' => t('КУРС ВАЛЮТ CBR.RU'),
+			'cache' => DRUPAL_NO_CACHE, // Режим работы кэша.
+			];
+	return $blocks;
+}
+
+// Display the block on the site.
+function cbr_block_view($delta = ''){
+    $content = "";
+    $block = [];
+    if($delta == 'cbr_block'){
+        $CBR = cbr_get();
+        $fruit = array_shift($CBR);
+        $second = array_shift($CBR);
+        //
+        $rows = [];
+        $curArr = [];
+        if(count($fruit['ITEMS'])) {
+            foreach ($fruit['ITEMS'] as $k => &$cur) {
+                if (!in_array($cur[1], ['USD', 'EUR', 'UAH'])) continue;
+                //
+                $cur[4] = (float)str_replace(",", ".", $cur[4]);
+                $difference = round($cur[4] - (float)str_replace(",", ".", $second['ITEMS'][$k][4]), 4);
+                $cur[4] = $cur[4].($difference>0?"↑":"↓");
+                $cur[] = ($difference>0?"+":"").$difference;
+                $curArr[] = $cur;
+            }
+            foreach ($curArr as $v) {
+                //
+                $rows[] = [
+                    'names'=> ['data' => $v['1'], 'class'=>'currency_title'],
+                    'date'=>['data' => $v['4'], 'class'=>'currency_description '.($v['5']>0?'UP':'DOWN').''],
+                    'rates'=>['data' => $v['5'], 'class'=>'currency_date '.($v['5']>0?'UP':'DOWN').''],
+                ];
+            }
+        }
+        //
+        $header = [
+            ['data' => 'КОД', 'class'=>'currency_kod'],
+            ['data' => 'КУРС','class'=>'currency_kod'],
+            ['data' => 'РАЗНИЦА','class'=>'currency_kod'],
+        ];
+
+        //
+        $content .= theme('table', array('header' => $header, 'rows' => $rows));
+        $content .= "<div class='val'><a href='/cbr'>курс на ".($fruit['DATE']?$fruit['DATE']:'')."</a></div>";
+
+        //
+        $block = array(
+            'subject' => t('КУРС ВАЛЮТ'),
+            'content' => $content,
+            );
+    }
+    return $block;
+}
+
+/**
+ * Return XML
+ */
+function cbr_get($ignore_cache = FALSE) {
+    $cbr_arr = NULL;
+    if (!$ignore_cache && ($cache = cache_get('cbr'))) {
+        $cbr_arr = $cache->data;
+    }else{
+        $cbr_parser = cbrClass::getXML();
+        if($cbr_parser){
+            //
+            $res = unserialize(file_get_contents(dirname(__FILE__)."/parser_cbr.txt"));
+            $res = $res?$res:[];
+            $res = count($res)?array_merge([$cbr_parser['DATE']=>$cbr_parser],$res):[$cbr_parser['DATE']=>$cbr_parser];
+            $res = array_slice($res, 0, 10);   // returns a slice of an array of 10 elements
+            $cbr_arr = $res;
+            // Here you need an algorithm to save the xml file on the server
+            file_put_contents(dirname(__FILE__)."/parser_cbr.txt", serialize($cbr_arr));
+            // save the array to the cache
+            cache_set('cbr', $cbr_arr);
+        }else{
+            $cbr_arr = unserialize(file_get_contents(dirname(__FILE__)."/parser_cbr.txt"));
+        }
+    }
+    return $cbr_arr;
+}
+
+/**
+ * Implements hook_cron().
+ */
+function cbr_cron() {
+    if (REQUEST_TIME - variable_get('cron_last') > 60*60){
+        cbr_get(TRUE);
+    }
+}
+
+function cbr_init() {
+    // The path to the mysite module.
+    $path = drupal_get_path('module', 'cbr');
+    // Include mysite.css.
+    drupal_add_css($path . '/css/cbr.css');
+}

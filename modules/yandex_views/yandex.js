@@ -43,7 +43,7 @@
 				//var myClusterer = new ymaps.Clusterer();
 		        myClusterer.add(myGeoObjects);
 		        myMap.geoObjects.add(myClusterer);
-		        myMap.setBounds(myClusterer.getBounds());
+		        myMap.setBounds(myClusterer.getBounds(),{checkZoomRange:true}); // https://tech.yandex.ru/maps/doc/jsapi/2.0/ref/reference/Map-docpage/#setBounds-param-options
 
 
 

@@ -1,6 +1,7 @@
-name = "cbr_xml"
+name = "cbr"
 description = The Central Bank of the Russian Federation official exchange rates on tyday formst parser XML.
 core = 7.x
 version = 7.x-1.0
-files[] = cbr_xml.module
+files[] = cbrClass.inc
+files[] = cbr.module
 package = Other
