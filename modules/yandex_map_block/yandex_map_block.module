@@ -1,0 +1,71 @@
+<?php
+
+// hook_menu()
+function yandex_map_block_menu(){
+    $items = [];
+    //
+    $items['admin/config/yandex-map-block'] = array(
+        'title' => 'Yandex block config',
+        'description' => 'Settings for block module',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('yandex_block_admin_settings'),
+        'file' => 'yandex_map_block.admin.inc',
+        'access arguments' => array('administer site configuration'),
+    );
+    return $items;
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function yandex_map_block_block_info() {
+  return array(
+    'yandex_map_block' => array(
+      'info' => t('Yandex Map block'),
+      'cache' => DRUPAL_NO_CACHE,
+    ),
+  );
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function yandex_map_block_block_view($delta = '') {
+    $content = "";
+    $block = [];
+    if($delta == 'yandex_map_block'){
+        $content .= '<div id="YMapsID"></div>';
+        $block['content']['#attached']['js'][] = array(
+            'data' => 'https://api-maps.yandex.ru/2.1/?lang=ru_RU',
+            'type' => 'external',
+            'weight'=>6,
+        );
+        $block['content']['#attached']['js'][] = array(
+            'data' => drupal_get_path('module', 'yandex_map_block') . '/js/yandex_map_block.js',
+            'type' => 'file',
+            'weight'=>7,
+        );
+        //
+        $ymb['ymb'] = [
+            'height'=>variable_get('ymb_height', "300"),
+            'center'=>variable_get('ymb_center', "55.7537,37.6199"),
+            'preset'=>variable_get('ymb_preset', "islands#dotIcon"),
+            'iconcolor'=>variable_get('ymb_iconcolor', "#1faee9"),
+            'zoom'=>variable_get('ymb_zoom', "11"),
+            'balloonContent'=>variable_get('balloonContent', ""),
+            'id'=>"YMapsID",
+        ];
+        $block['content']['#attached']['js'][] = [
+            'data' => $ymb,
+            'type' => 'setting',
+        ];
+        $block['subject'] = t('НА КАРТЕ');
+        $block['content']['#markup'] = $content;
+    }
+    return $block;
+}
+
+function yandex_map_block_init() {
+   //$path = drupal_get_path('module', 'yandex_map_block');
+   //drupal_add_css($path . '/css/yandex_map_block.css');
+}

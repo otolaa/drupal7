@@ -5,8 +5,7 @@ class cbrClass{
         $cbr_arr = NULL;
         $date_ = date("d/m/Y", time());
         $url = "http://www.cbr.ru/scripts/XML_daily.asp";
-        $xml = simplexml_load_file($url);
-        if($xml ===  FALSE){
+        if(($xml = simplexml_load_file($url)) ===  FALSE){
             // deal with error
             return FALSE;
         }

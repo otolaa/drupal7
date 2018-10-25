@@ -1,0 +1,8 @@
+name = Yandex Maps in Block
+description = Displays a Yandex map in a block
+core = 7.x
+configure = "admin/config/yandex-map-block"
+version = "7.x-1.0"
+files[] = yandex_map_block.admin.inc
+files[] = yandex_map_block.module
+package = Yandex map
