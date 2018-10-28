@@ -46,13 +46,30 @@ function yandex_block_admin_settings($form, &$form_state) {
         '#description' => t('#1faee9'),
     );
 
-    $form['balloonContent'] = array(
+    $form['balloonHeader'] = array(
         '#type' => 'textfield',
-        '#title' => t('Balloon Content'),
+        '#title' => t('Balloon Header'),
         '#size' => 30,
         '#maxlength' => 500,
+        '#default_value' => variable_get('balloonHeader', ""),
+        '#description' => t('Title description'),
+    );
+
+    $form['balloonContent'] = array(
+        '#type' => 'textarea',
+        '#title' => t('Balloon Content'),
+        '#rows' => 2,
         '#default_value' => variable_get('balloonContent', ""),
         '#description' => t('My company description'),
+    );
+
+    $form['balloonFooter'] = array(
+        '#type' => 'textfield',
+        '#title' => t('balloon Footer'),
+        '#size' => 30,
+        '#maxlength' => 500,
+        '#default_value' => variable_get('balloonFooter', ""),
+        '#description' => t('Footer description'),
     );
 
     $form['address'] = array(

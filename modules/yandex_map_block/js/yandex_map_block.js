@@ -20,7 +20,7 @@
                 myMap.controls.add(searchControl, { left: '40px', top: '10px' });
                 // -- 0
                 if($center[0] && $center[1]){
-                    myPlacemark = new ymaps.Placemark([$center[0],$center[1]], {balloonContent: $ymb['balloonContent']}, {draggable: false, preset: $ymb['preset'], iconColor: $ymb['iconcolor'],});
+                    myPlacemark = new ymaps.Placemark([$center[0],$center[1]], {balloonContentHeader: $ymb['balloonHeader'], balloonContentBody: $ymb['balloonContent'], balloonContentFooter: $ymb['balloonFooter'] }, {draggable: false, preset: $ymb['preset'], iconColor: $ymb['iconcolor'],});
                     myMap.geoObjects.add(myPlacemark);
                 }
             }

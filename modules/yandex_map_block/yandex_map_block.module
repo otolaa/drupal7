@@ -53,6 +53,8 @@ function yandex_map_block_block_view($delta = '') {
             'iconcolor'=>variable_get('ymb_iconcolor', "#1faee9"),
             'zoom'=>variable_get('ymb_zoom', "11"),
             'balloonContent'=>variable_get('balloonContent', ""),
+            'balloonHeader'=>variable_get('balloonHeader', ""),
+            'balloonFooter'=>variable_get('balloonFooter', ""),
             'id'=>"YMapsID",
         ];
         $block['content']['#attached']['js'][] = [
