@@ -1,0 +1,150 @@
+<?php
+
+// hook_menu()
+function kino_menu() {
+    $items = [];
+    //
+    $items['admin/config/kino'] = array(
+        'title' => 'kino config',
+        'description' => 'Settings for kino module',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('kino_admin_settings'),
+        'file' => 'kino.admin.inc',
+        'access arguments' => array('administer site configuration'),
+    );
+
+    $items['kino'] = array(
+        'title' => 'Афиша',
+        'page callback' => 'kino_callback',
+        'page arguments' => array(1),
+        'access callback' => 'kino_access',
+        'access arguments' => array(1),
+        //'type' => MENU_LOCAL_TASK,
+        //'weight' => 10,
+    );
+    return $items;
+}
+
+// access
+function kino_access($account) {
+  return true;
+}
+
+// page kino
+function kino_callback($account) {
+    $output = "";
+    $kino = kino_get();
+    if(!$kino){
+        return $output;
+    }else{
+        drupal_set_title($kino['CITY']);
+        $rows = [];
+        foreach ($kino['SCHEDULE'] as $SHOWING):
+            if(!empty($SHOWING)) {
+                // dpm($SHOWING);
+                $rows[] = ['header'=>['data' => ['#markup' => $SHOWING['DATE']], 'colspan' => 3, 'class'=>'kino-header']];
+                foreach ($SHOWING['FILM'] as $code => $dt) {
+                    $rows[] = [
+                        'date_name' => ['data' => $dt['TITLE'], 'class'=>'date_name'],
+                        'date_age' => ['data' => (strlen($dt['AGE'])>0?$dt['AGE']."+":""), 'class'=>'date_age'],
+                        'date_info' => ['data' => implode("<br>", $dt['DESCRIPTION']), 'class'=>'date_info'],
+                    ];
+                    if(!empty($dt['CINEMA'])): foreach ($dt['CINEMA'] as $CINEMA):
+                        foreach ($CINEMA['TIME'] as $k=>$time):
+                            $rows[] = [
+                                'date_cinema_name' => ['data' => ($k==0?$CINEMA['TITLE']:""), 'class'=>'date_cinema'],
+                                'date_cinema_hall' => ['data' => ($CINEMA['HALL'][$k]?$CINEMA['HALL'][$k]:""), 'class'=>'date_hall'],
+                                'date_cinema_session' => ['data' => $time, 'class'=>'date_session'],
+                            ];
+                        endforeach;
+                    endforeach; endif;
+                }
+            }
+        endforeach;
+        //
+        $output .= theme('table', ['header' => [], 'rows' => $rows?$rows:[], 'attributes'=>['class'=>['kinopoisk-block-modules-table']]]);
+    }
+
+    return $output;
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function kino_block_info() {
+  return array(
+    'kino' => array(
+      'info' => t('Kino block'),
+      'cache' => DRUPAL_NO_CACHE,
+    ),
+  );
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function kino_block_view($delta = '') {
+    $content = "";
+    $block = [];
+    if($delta == 'kino'){
+        $kino = kino_get();
+        if(!$kino){
+            return $block;
+        }else{
+            $SHOWING = $kino['SCHEDULE'][0];
+            if(!empty($SHOWING)){
+                $rows = [];
+                foreach ($SHOWING['FILM'] as $code =>$dt) {
+                    $rows[] = [
+                        'date_name'=> ['data' => $dt['TITLE'], 'class'=>'date_name'],
+                        'date_age'=> ['data' => $dt['AGE']?$dt['AGE']."+":"",'class'=>'date_age'],
+                        'date_info'=> ['data' => substr($dt['DESCRIPTION'][0],0,-1)],
+                        //'date_time'=> ['data' => ['#markup' => $dt['INFO'][3]]],
+                    ];
+                }
+                $content .= theme('table', ['header' => [['data' => $SHOWING['DATE'], 'colspan' => 3, 'class'=>'kino-header']], 'rows' => $rows?$rows:[], 'attributes'=>['class'=>['kinopoisk-block-modules-table']]]);
+            }
+            $content .= "<div class='kinopoisk-url-pages'>" . l(t('Все расписание'), 'kino') . "</div>";
+            $block['subject'] = $kino['CITY'];
+            $block['content'] = $content;
+        }
+    }
+    return $block;
+}
+
+/**
+ * Return kino.
+ */
+function kino_get($ignore_cache = FALSE) {
+    $kino = Null;
+    if (!$ignore_cache && ($cache = cache_get('kino'))) {
+        $kino = $cache->data;
+    }else{
+        $kino = kinoClass::getXpath();
+        if($kino){
+            // Here you need an algorithm to save the xml file on the server
+            file_put_contents(dirname(__FILE__)."/parser_kino.txt", serialize($kino));
+            // save the array to the cache
+            cache_set('kino', $kino);
+        }else{
+            $kino = unserialize(file_get_contents(dirname(__FILE__)."/parser_kino.txt"));
+        }
+    }
+    return $kino;
+}
+
+/**
+ * Implements hook_cron().
+ */
+function kino_cron() {
+  if (REQUEST_TIME - variable_get('cron_last') > 60*60) {
+    kino_get(TRUE);
+  }
+}
+
+function kino_init() {
+   // The path to the mysite module.
+   $path = drupal_get_path('module', 'kino');
+   // Include mysite.css.
+   drupal_add_css($path . '/css/kino.css');
+}

@@ -16,3 +16,8 @@ this is the parsing yandex.ru/pogoda
 this is the block map yandex
 
 ![yandex_map_block](https://github.com/otolaa/drupal7/blob/master/img/map_block.png "yandex_map_block")
+
+# 4. kino
+this is the parsing module schedule for cities film on the kinopoisk.ru
+
+![kinopoisk for pages](https://github.com/otolaa/drupal7/blob/master/img/kino.png "kinopoisk for pages")

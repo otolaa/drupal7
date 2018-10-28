@@ -1,0 +1,10 @@
+name = "Kinopoisk parsing"
+description = Kinopoisk - parsing www.kinopoisk.ru/afisha/city/
+core = 7.x
+configure = "admin/config/kino"
+version = 7.x-1.0
+files[] = kinoClass.inc
+files[] = kino.admin.inc
+files[] = kinoClass.inc
+files[] = kino.module
+package = Other
